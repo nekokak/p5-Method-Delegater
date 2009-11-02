@@ -12,7 +12,7 @@ sub import {
     {
         no strict 'refs'; ## no critic.
         *{"$caller\::_delegate_info"} = sub { $_delegate_info };
-        for my $func (qw/delegate initialize handles setting/) {
+        for my $func (qw/delegate initialize handles install/) {
             *{"$caller\::$func"} = \&$func;
         }
     }
@@ -34,7 +34,7 @@ sub delegate ($$) {
     return;
 }
 
-sub setting (&) { shift }
+sub install (&) { shift }
 
 sub initialize (&) {
     my $code = shift;
@@ -71,7 +71,7 @@ Method::Delegater - delegete other class method.
 
   package Your::Module;
   use Method::Delegater;
-  delegate key => {
+  delegate key => install {
       initialize => {
           my $self = shift;
           Foo->new($self);

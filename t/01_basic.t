@@ -16,7 +16,7 @@ plan tests => blocks;
         my $class = shift;
         bless {}, $class;
     }
-    delegate '_foo' => setting {
+    delegate '_foo' => install {
         initialize {
             my $self = shift;
             Foo->new($self);
