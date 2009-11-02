@@ -10,8 +10,19 @@ plan tests => blocks;
     use strict;
     use warnings;
     use Method::Delegater;
+    use Foo;
 
-    delegate 'Foo' => qw/bar baz/;
+    sub new {
+        my $class = shift;
+        bless {}, $class;
+    }
+    delegate '_foo' => setting {
+        initialize {
+            my $self = shift;
+            Foo->new($self);
+        };
+        handles [qw/bar baz foo/];
+    };
 
     1;
 }
@@ -19,6 +30,14 @@ plan tests => blocks;
 describe 'method delegate test' => run {
     test 'bar baz methods delegate ok?' => run {
         can_ok 'Mock', qw/bar baz/;
+    };
+
+    test 'delegate methods tests' => run {
+        my $obj = Mock->new;
+        is $obj->bar, 'bar';
+        is $obj->baz, 'baz';
+        isa_ok $obj->foo, 'Foo';
+        isa_ok $obj->foo->{base}, 'Mock';
     };
 };
 

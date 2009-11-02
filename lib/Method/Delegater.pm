@@ -7,22 +7,57 @@ our $VERSION = '0.01';
 sub import {
     my $caller = caller(0);
 
-    no strict 'refs'; ## no critic.
-    *{"${caller}::delegate"} = \&_delegate;
+    my $_delegate_info = {};
+
+    {
+        no strict 'refs'; ## no critic.
+        *{"$caller\::_delegate_info"} = sub { $_delegate_info };
+        for my $func (qw/delegate initialize handles setting/) {
+            *{"$caller\::$func"} = \&$func;
+        }
+    }
 }
 
-sub _delegate {
-    my ($class, @methods) = @_;
+sub _get_caller_class {
+    my $caller = caller(1);
+    return $caller;
+}
 
-    eval "use $class"; ## no critic.
-    if ( $@ ) { die "can not use $class." }
+sub delegate ($$) {
+    my ($key, $code) = @_;
 
-    my $caller = caller(0);
+    my $class = _get_caller_class;
+    $class->_delegate_info->{stack}->{building_key} = $key;
 
-    for my $method (@methods) {
-        my $code = $class->can($method);
+    $code->();
+
+    return;
+}
+
+sub setting (&) { shift }
+
+sub initialize (&) {
+    my $code = shift;
+
+    my $class = _get_caller_class;
+    $class->_delegate_info->{building_initializer} = $code;
+}
+
+sub handles {
+    my $args = shift;
+
+    my $class = _get_caller_class;
+    my $key = $class->_delegate_info->{stack}->{building_key};
+    my $code = $class->_delegate_info->{building_initializer};
+
+    for my $func (@{$args}) {
         no strict 'refs'; ## no critic.
-        *{"${caller}::${method}"} = $code;
+        *{"${class}::${func}"} = sub {
+            my $self = shift;
+            # die
+            $self->{$key} ||= $self->$code; 
+            $self->{$key}->$func(@_);
+        };
     }
 }
 
@@ -36,10 +71,17 @@ Method::Delegater - delegete other class method.
 
   package Your::Module;
   use Method::Delegater;
-  delegate 'Foo' => qw/bar baz/;
+  delegate key => {
+      initialize => {
+          my $self = shift;
+          Foo->new($self);
+      },
+      handles => [qw/bar baz/],
+  }
 
   use Your::Module;
-  Yor::Module->bar;
+  my $obj = Your::Module->new;
+  $boj->bar;
 
 =head1 DESCRIPTION
 
